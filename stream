@@ -1,0 +1,141 @@
+#!/usr/bin/env zsh
+
+STREAMERS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/streamers/list.txt"
+STREAM_QUALITY="${STREAM_QUALITY:-best}"
+CREDENTIALS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/streamers/credentials"
+
+if [[ -f "$CREDENTIALS_FILE" ]]; then
+  source "$CREDENTIALS_FILE"
+fi
+
+for cmd in fzf streamlink; do
+  if ! command -v $cmd &>/dev/null; then
+    print "Error: $cmd is not installed" >&2
+    exit 1
+  fi
+done
+
+if [[ ! -f "$STREAMERS_FILE" ]]; then
+  print "No streamers file at $STREAMERS_FILE"
+  print "Format: Name|URL|Timezone"
+  exit 1
+fi
+
+get_live_twitch() {
+  local channels=("$@")
+  local query=""
+
+  for channel in "${channels[@]}"; do
+    query+="user_login=${channel}&"
+  done
+
+  curl -s -X GET "https://api.twitch.tv/helix/streams?${query}" \
+    -H "Client-ID: ${TWITCH_CLIENT_ID}" \
+    -H "Authorization: Bearer ${TWITCH_TOKEN}" | \
+    jq -r '.data[].user_login' | tr '[:upper:]' '[:lower:]'
+  }
+
+launch_stream() {
+  term_width=$(tput cols)
+  local twitch_channels=()
+    
+    while IFS='|' read -r name url tz; do
+      if [[ "$url" == *"twitch.tv"* ]]; then
+        twitch_channels+=(${url:t})
+        fi
+      done < <(grep -v '^\s*#\|^\s*$' "$STREAMERS_FILE")
+      
+      local live_twitch=($(get_live_twitch "${twitch_channels[@]}"))
+      fzf_input=$(grep -v '^\s*#\|^\s*$' "$STREAMERS_FILE" | \
+        while IFS='|' read -r name url tz; do
+          tz="${tz//[[:space:]]/}"
+          if [[ -n "$tz" ]]; then
+            local_time=$(TZ="$tz" date +'%H:%M')
+            local indicator=""
+              if [[ "$url" == *"twitch.tv"* ]]; then
+                  local channel=${url:t}
+                  if (( ${live_twitch[(Ie)$channel]} )); then
+                      indicator="● "
+                  fi
+              fi
+              display=$(printf "%-$((term_width - 8))s%s" "${indicator}${name}" "$local_time")
+          else
+            display="${indicator}${name}"
+          fi
+          printf '%s\t%s\t%s\n' "$display" "$url" "$tz"
+        done)
+
+        selection=$(printf '%s\n' "$fzf_input" | \
+          fzf --delimiter='\t'\
+          --with-nth=1\
+          --prompt=' stream > ' \
+          --height=40% \
+          --reverse)
+
+        [[ -z "$selection" ]] && exit 0
+
+        name=$(printf '%s' "$selection" | cut -f1)
+        url=$(printf '%s' "$selection" | cut -f2)
+
+        print "Launching: $name ($STREAM_QUALITY)"
+        streamlink "$url" "$STREAM_QUALITY"
+      }
+
+    add_streamer() {
+      stty sane
+      read "name?Name: "
+      read "url?URL: "
+      read "tz?Timezone (e.g. America/New_York): "
+
+      if [[ "$url" == *"twitch.tv"* ]]; then
+        section="# Twitch"
+      elif [[ "$url" == *"youtube.com"* ]]; then
+        section="#YouTube"
+      else
+        print "Unknown platform — add manually to $STREAMERS_FILE"
+        return 1
+      fi
+
+      new_entry="${name}|${url}|${tz}"
+
+      awk -v hdr="$section" -v entry="$new_entry" '
+      /^#/ { in_section=($0 == hdr) }
+      /^$/ && in_section { print entry; in_section=0 }
+      { print }
+    END { if (in_section) print entry }
+    ' "$STREAMERS_FILE" > "${STREAMERS_FILE}.tmp" && \
+      mv "${STREAMERS_FILE}.tmp" "$STREAMERS_FILE"
+
+    print "Added: $new_entry"
+  }
+
+remove_streamer() {
+  stty sane
+  selection=$(grep -v '^\s*#\|^\s*$' "$STREAMERS_FILE" | tr '|' '\t' | \
+    fzf --delimiter='\t' \
+    --with-nth=1 \
+    --prompt='  remove > ' \
+    --height=40% \
+    --reverse)
+
+  [[ -z "$selection" ]] && return 0
+
+  name=$(printf '%s' "$selection" | cut -f1)
+  original=$(printf '%s' "$selection" | tr '\t' '|')
+
+  print -n "Remove $name? [y/N] "
+  read confirm
+  [[ "$confirm" != "y" ]] && return 0
+
+  grep -vF "$original" "$STREAMERS_FILE" > "${STREAMERS_FILE}.tmp" && \
+    mv "${STREAMERS_FILE}.tmp" "$STREAMERS_FILE"
+
+  print "Removed: $name"
+}
+
+case "$1" in
+  -a) add_streamer ;;
+  -r) remove_streamer ;;
+  *) launch_stream ;;
+esac
+
