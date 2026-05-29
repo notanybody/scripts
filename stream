@@ -33,21 +33,19 @@ get_live_twitch() {
     -H "Client-ID: ${TWITCH_CLIENT_ID}" \
     -H "Authorization: Bearer ${TWITCH_TOKEN}" | \
     jq -r '.data[]?.user_login' | tr '[:upper:]' '[:lower:]'
-  }
+}
 
 get_live_youtube() {
-    local channels=("$@")
-    local tmpdir=$(mktemp -d)
+  local channels=("$@")
 
-    for channel in "${channels[@]}"; do
-      curl -s "https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&part=snippet&eventType=live&type=video&channelId=${channel}" | \
-        jq -r '.items[]?.snippet.channelId' > "$tmpdir/$channel" &
+  for channel in "${channels[@]}"; do
+    if yt-dlp --simulate --quiet "https://www.youtube.com/channel/${channel}/live" 2>/dev/null; then
+      echo "$channel"
+      fi &
     done
 
     wait
-    cat "$tmpdir"/*
-    rm -rf "$tmpdir"
-  }
+}
 
 launch_stream() {
   term_width=$(tput cols)
@@ -102,7 +100,7 @@ launch_stream() {
 
     print "Launching: $name ($STREAM_QUALITY)"
     streamlink "$url" "$STREAM_QUALITY"
-  }
+}
 
 add_streamer() {
   stty sane
