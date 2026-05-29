@@ -37,14 +37,20 @@ get_live_twitch() {
 
 get_live_youtube() {
   local channels=("$@")
+  local cache="/tmp/stream_yt_live"
+  local tmpdir=$(mktemp -d)
 
   for channel in "${channels[@]}"; do
-    if yt-dlp --simulate --quiet "https://www.youtube.com/channel/${channel}/live" 2>/dev/null; then
-      echo "$channel"
-      fi &
-    done
+    {
+      if yt-dlp --simulate --quiet --socket-timeout 5 "https://www.youtube.com/channel/${channel}/live" 2>/dev/null; then
+        echo "$channel"
+      fi
+    } > "$tmpdir/$channel" &
+  done
 
-    wait
+  wait
+  cat "$tmpdir"/* 2>/dev/null > "$cache"
+  rm -rf "$tmpdir"
 }
 
 launch_stream() {
@@ -61,7 +67,10 @@ launch_stream() {
   done < <(grep -v '^\s*#\|^\s*$' "$STREAMERS_FILE")
 
   local live_twitch=($(get_live_twitch "${twitch_channels[@]}"))
-  local live_youtube=($(get_live_youtube "${youtube_channels[@]}"))
+  local yt_cache="/tmp/stream_yt_live"
+  local live_youtube=()
+  [[ -f "$yt_cache" ]] && live_youtube=(${(f)"$(cat $yt_cache)"})
+  get_live_youtube "${youtube_channels[@]}" &>/dev/null &!
   fzf_input=$(grep -v '^\s*#\|^\s*$' "$STREAMERS_FILE" | \
     while IFS='|' read -r name url tz; do
       tz="${tz//[[:space:]]/}"
