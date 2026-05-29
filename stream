@@ -32,82 +32,105 @@ get_live_twitch() {
   curl -s -X GET "https://api.twitch.tv/helix/streams?${query}" \
     -H "Client-ID: ${TWITCH_CLIENT_ID}" \
     -H "Authorization: Bearer ${TWITCH_TOKEN}" | \
-    jq -r '.data[].user_login' | tr '[:upper:]' '[:lower:]'
+    jq -r '.data[]?.user_login' | tr '[:upper:]' '[:lower:]'
+  }
+
+get_live_youtube() {
+    local channels=("$@")
+    local tmpdir=$(mktemp -d)
+
+    for channel in "${channels[@]}"; do
+      curl -s "https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&part=snippet&eventType=live&type=video&channelId=${channel}" | \
+        jq -r '.items[]?.snippet.channelId' > "$tmpdir/$channel" &
+    done
+
+    wait
+    cat "$tmpdir"/*
+    rm -rf "$tmpdir"
   }
 
 launch_stream() {
   term_width=$(tput cols)
   local twitch_channels=()
-    
+  local youtube_channels=()
+
+  while IFS='|' read -r name url tz; do
+    if [[ "$url" == *"twitch.tv"* ]]; then
+      twitch_channels+=(${(L)${url:t}})
+    elif [[ "$url" == *"youtube.com"* ]]; then
+      youtube_channels+=(${${url%/live}:t})
+    fi
+  done < <(grep -v '^\s*#\|^\s*$' "$STREAMERS_FILE")
+
+  local live_twitch=($(get_live_twitch "${twitch_channels[@]}"))
+  local live_youtube=($(get_live_youtube "${youtube_channels[@]}"))
+  fzf_input=$(grep -v '^\s*#\|^\s*$' "$STREAMERS_FILE" | \
     while IFS='|' read -r name url tz; do
-      if [[ "$url" == *"twitch.tv"* ]]; then
-        twitch_channels+=(${url:t})
-        fi
-      done < <(grep -v '^\s*#\|^\s*$' "$STREAMERS_FILE")
-      
-      local live_twitch=($(get_live_twitch "${twitch_channels[@]}"))
-      fzf_input=$(grep -v '^\s*#\|^\s*$' "$STREAMERS_FILE" | \
-        while IFS='|' read -r name url tz; do
-          tz="${tz//[[:space:]]/}"
-          if [[ -n "$tz" ]]; then
-            local_time=$(TZ="$tz" date +'%H:%M')
-            local indicator=""
-              if [[ "$url" == *"twitch.tv"* ]]; then
-                local channel=${(L)${url:t}}
-                  if (( ${live_twitch[(Ie)$channel]} )); then
-                      indicator="● "
-                  fi
-              fi
-              display=$(printf "%-$((term_width - 8))s%s" "${indicator}${name}" "$local_time")
-          else
-            display="${indicator}${name}"
+      tz="${tz//[[:space:]]/}"
+      if [[ -n "$tz" ]]; then
+        local_time=$(TZ="$tz" date +'%H:%M')
+        local indicator=""
+        if [[ "$url" == *"twitch.tv"* ]]; then
+          local channel=${(L)${url:t}}
+          if (( ${live_twitch[(Ie)$channel]} )); then
+            indicator="● "
           fi
-          printf '%s\t%s\t%s\n' "$display" "$url" "$tz"
-        done)
-
-        selection=$(printf '%s\n' "$fzf_input" | \
-          fzf --delimiter='\t'\
-          --with-nth=1\
-          --prompt=' stream > ' \
-          --height=40% \
-          --reverse)
-
-        [[ -z "$selection" ]] && exit 0
-
-        name=$(printf '%s' "$selection" | cut -f1)
-        url=$(printf '%s' "$selection" | cut -f2)
-
-        print "Launching: $name ($STREAM_QUALITY)"
-        streamlink "$url" "$STREAM_QUALITY"
-      }
-
-    add_streamer() {
-      stty sane
-      read "name?Name: "
-      read "url?URL: "
-      read "tz?Timezone (e.g. America/New_York): "
-
-      if [[ "$url" == *"twitch.tv"* ]]; then
-        section="# Twitch"
-      elif [[ "$url" == *"youtube.com"* ]]; then
-        section="#YouTube"
+        elif [[ "$url" == *"youtube.com"* ]]; then
+          local channel=${${url%/live}:t}
+          if (( ${live_youtube[(Ie)$channel]} )); then
+            indicator="● "
+          fi
+        fi
+        display=$(printf "%-$((term_width - 8))s%s" "${indicator}${name}" "$local_time")
       else
-        print "Unknown platform — add manually to $STREAMERS_FILE"
-        return 1
+        display="${indicator}${name}"
       fi
+      printf '%s\t%s\t%s\n' "$display" "$url" "$tz"
+    done)
 
-      new_entry="${name}|${url}|${tz}"
+    selection=$(printf '%s\n' "$fzf_input" | \
+      fzf --delimiter='\t'\
+      --with-nth=1\
+      --prompt=' stream > ' \
+      --height=40% \
+      --reverse)
 
-      awk -v hdr="$section" -v entry="$new_entry" '
-      /^#/ { in_section=($0 == hdr) }
-      /^$/ && in_section { print entry; in_section=0 }
-      { print }
-    END { if (in_section) print entry }
-    ' "$STREAMERS_FILE" > "${STREAMERS_FILE}.tmp" && \
-      mv "${STREAMERS_FILE}.tmp" "$STREAMERS_FILE"
+    [[ -z "$selection" ]] && exit 0
 
-    print "Added: $new_entry"
+    name=$(printf '%s' "$selection" | cut -f1)
+    url=$(printf '%s' "$selection" | cut -f2)
+
+    print "Launching: $name ($STREAM_QUALITY)"
+    streamlink "$url" "$STREAM_QUALITY"
   }
+
+add_streamer() {
+  stty sane
+  read "name?Name: "
+  read "url?URL: "
+  read "tz?Timezone (e.g. America/New_York): "
+
+  if [[ "$url" == *"twitch.tv"* ]]; then
+    section="# Twitch"
+  elif [[ "$url" == *"youtube.com"* ]]; then
+    section="#YouTube"
+  else
+    print "Unknown platform — add manually to $STREAMERS_FILE"
+    return 1
+  fi
+
+  new_entry="${name}|${url}|${tz}"
+
+  awk -v hdr="$section" -v entry="$new_entry" '
+  /^#/ { in_section=($0 == hdr) }
+  /^$/ && in_section { print entry; in_section=0 }
+  { print }
+END { if (in_section) print entry }
+' "$STREAMERS_FILE" > "${STREAMERS_FILE}.tmp" && \
+  mv "${STREAMERS_FILE}.tmp" "$STREAMERS_FILE"
+
+print "Added: $new_entry"
+}
 
 remove_streamer() {
   stty sane
