@@ -80,12 +80,12 @@ launch_stream() {
         if [[ "$url" == *"twitch.tv"* ]]; then
           local channel=${(L)${url:t}}
           if (( ${live_twitch[(Ie)$channel]} )); then
-            indicator="● "
+            indicator=" "
           fi
         elif [[ "$url" == *"youtube.com"* ]]; then
           local channel=${${url%/live}:t}
           if (( ${live_youtube[(Ie)$channel]} )); then
-            indicator="● "
+            indicator=" "
           fi
         fi
         display=$(printf "%-$((term_width - 8))s%s" "${indicator}${name}" "$local_time")
