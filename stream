@@ -75,7 +75,7 @@ launch_stream() {
     while IFS='|' read -r name url tz; do
       tz="${tz//[[:space:]]/}"
       if [[ -n "$tz" ]]; then
-        local_time=$(TZ="$tz" date +'%H:%M')
+        local_time=$(TZ="$tz" date +'%I:%M%p')
         local indicator=""
         if [[ "$url" == *"twitch.tv"* ]]; then
           local channel=${(L)${url:t}}
@@ -88,7 +88,7 @@ launch_stream() {
             indicator=" "
           fi
         fi
-        display=$(printf "%-$((term_width - 8))s%s" "${indicator}${name}" "$local_time")
+        display=$(printf "%-$((term_width - 10))s%s" "${indicator}${name}" "$local_time")
       else
         display="${indicator}${name}"
       fi
