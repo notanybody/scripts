@@ -2,7 +2,7 @@
 
 STREAMERS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/scripts/stream/list.txt"
 STREAM_QUALITY="${STREAM_QUALITY:-best}"
-CREDENTIALS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/streamers/credentials"
+CREDENTIALS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/scripts/stream/credentials"
 
 if [[ -f "$CREDENTIALS_FILE" ]]; then
   source "$CREDENTIALS_FILE"
