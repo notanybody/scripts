@@ -1,0 +1,8 @@
+# Generated reports (contain personal library data)
+*.md
+!README.md
+*.m3u
+
+# Python
+__pycache__/
+*.pyc
