@@ -1,0 +1,8 @@
+2026-06-24 21:58:47,112 [INFO] Downloading (twitter): https://x.com/kin_safe45135/status/2069869471397806189?s=12&t=jopV4540YLadjZU7nY3Agw
+2026-06-24 21:58:49,229 [INFO] Done: https://x.com/kin_safe45135/status/2069869471397806189?s=12&t=jopV4540YLadjZU7nY3Agw
+2026-06-24 21:59:33,341 [INFO] Downloading (twitter): https://x.com/kin_safe45135/status/2069869471397806189?s=12&t=jopV4540YLadjZU7nY3Agw
+2026-06-24 21:59:34,524 [INFO] Done: https://x.com/kin_safe45135/status/2069869471397806189?s=12&t=jopV4540YLadjZU7nY3Agw
+2026-06-24 22:03:04,228 [INFO] Downloading (instagram): https://www.instagram.com/reel/DZ3tyggR1sL/
+2026-06-24 22:03:05,658 [ERROR] Failed: https://www.instagram.com/reel/DZ3tyggR1sL/ - ERROR: [Instagram] DZ3tyggR1sL: This content isn't available to everyone: It can't be seen by certain audiences.
+2026-06-24 22:04:57,678 [INFO] Downloading (instagram): https://www.instagram.com/reel/DZ6c53oAovh
+2026-06-24 22:04:58,655 [ERROR] Failed: https://www.instagram.com/reel/DZ6c53oAovh - ERROR: [Instagram] DZ6c53oAovh: Instagram sent an empty media response. Check if this post is accessible in your browser without being logged-in. If it is not, then use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Otherwise, if the post is accessible in browser without being logged-in, please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
