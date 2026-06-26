@@ -16,23 +16,29 @@ COLOR_NAMES = {
     7: 'Orange',
 }
 
-def get_tag_color(filepath):
+# Display order for combined labels (tags can stack, e.g. Red+Purple)
+COLOR_DISPLAY_ORDER = [5, 4, 7, 3, 6, 1, 2]  # Red, Blue, Orange, Purple, Yellow, Gray, Green
+
+def get_tag_label(filepath):
     result = subprocess.run(
         ['xattr', '-px', 'com.apple.metadata:_kMDItemUserTags', filepath],
         capture_output=True, text=True
     )
     if result.returncode != 0 or not result.stdout.strip():
-        return None
+        return 'Untagged'
     try:
         hex_data = result.stdout.strip().replace(' ', '').replace('\n', '')
         data = plistlib.loads(bytes.fromhex(hex_data))
+        colors = set()
         for tag in data:
             parts = tag.split('\n')
             if len(parts) > 1:
-                return int(parts[1])
-        return 0
+                colors.add(int(parts[1]))
+        if not colors:
+            return 'Tagged (no color)'
+        return '+'.join(COLOR_NAMES.get(c, 'Other') for c in COLOR_DISPLAY_ORDER if c in colors)
     except Exception:
-        return None
+        return 'Untagged'
 
 def format_size(size_bytes):
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
@@ -69,18 +75,12 @@ def generate_info(model_path, model_name):
             continue
         file_count += 1
         total_size += entry.stat().st_size
-        color = get_tag_color(entry.path)
-        if color and color in COLOR_NAMES:
-            label = COLOR_NAMES[color]
-        elif color == 0:
-            label = 'Tagged (no color)'
-        else:
-            label = 'Untagged'
+        label = get_tag_label(entry.path)
         tag_counts[label] = tag_counts.get(label, 0) + 1
 
     date_added = get_creation_date(model_path)
 
-    tag_order = ['Blue', 'Red', 'Orange', 'Purple', 'Yellow', 'Gray', 'Green', 'Tagged (no color)', 'Untagged']
+    tag_order = ['Red+Purple', 'Blue+Purple', 'Purple', 'Orange', 'Blue', 'Red', 'Yellow', 'Gray', 'Green', 'Tagged (no color)', 'Untagged']
     tag_summary = ', '.join(
         f"{label} ({tag_counts[label]})"
         for label in tag_order if label in tag_counts

@@ -6,14 +6,10 @@ from tqdm import tqdm
 
 VIDEO_EXTS = {'.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v'}
 
-# Lower number = higher priority in sort
-TAG_PRIORITY = {
-    4: 0,  # Blue
-    5: 1,  # Red
-    7: 2,  # Orange
-    3: 3,  # Purple
-    6: 4,  # Yellow
-}
+# Tags can stack (e.g. Red+Purple for a nude favorite). Lower number = higher
+# priority in sort. Order: Red+Purple, Blue+Purple, Purple alone, Orange,
+# Blue, Red, Yellow, untagged.
+RED, BLUE, ORANGE, PURPLE, YELLOW = 5, 4, 7, 3, 6
 
 def find_tag_attr(filepath):
     """Find the correct xattr name for Apple tags on this filesystem."""
@@ -26,21 +22,39 @@ def find_tag_attr(filepath):
         pass
     return None
 
-def get_tag_priority(filepath):
+def get_tag_colors(filepath):
     attr_name = find_tag_attr(filepath)
     if not attr_name:
-        return 6  # untagged
+        return set()
     try:
         data = os.getxattr(filepath, attr_name)
         tags = plistlib.loads(data)
+        colors = set()
         for tag in tags:
             parts = tag.split('\n')
             if len(parts) > 1:
-                color = int(parts[1])
-                return TAG_PRIORITY.get(color, 5)
-        return 5  # tagged but no color
+                colors.add(int(parts[1]))
+        return colors
     except (OSError, Exception):
-        return 6  # untagged
+        return set()
+
+def get_tag_priority(filepath):
+    colors = get_tag_colors(filepath)
+    if RED in colors and PURPLE in colors:
+        return 0
+    if BLUE in colors and PURPLE in colors:
+        return 1
+    if PURPLE in colors:
+        return 2
+    if ORANGE in colors:
+        return 3
+    if BLUE in colors:
+        return 4
+    if RED in colors:
+        return 5
+    if YELLOW in colors:
+        return 6
+    return 7  # untagged
 
 def get_creation_time(filepath):
     return os.path.getmtime(filepath)

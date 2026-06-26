@@ -15,9 +15,12 @@ COLOR_NAMES = {
     7: 'Orange',
 }
 
-TAG_ORDER = ['Blue', 'Red', 'Orange', 'Purple', 'Yellow', 'Gray', 'Green', 'Untagged']
+# Display order for combined labels (tags can stack, e.g. Red+Purple)
+COLOR_DISPLAY_ORDER = [5, 4, 7, 3, 6, 1, 2]  # Red, Blue, Orange, Purple, Yellow, Gray, Green
 
-def get_tag_color_name(filepath):
+TAG_ORDER = ['Red+Purple', 'Blue+Purple', 'Purple', 'Orange', 'Blue', 'Red', 'Yellow', 'Gray', 'Green', 'Untagged']
+
+def get_tag_label(filepath):
     result = subprocess.run(
         ['xattr', '-px', 'com.apple.metadata:_kMDItemUserTags', filepath],
         capture_output=True, text=True
@@ -27,11 +30,14 @@ def get_tag_color_name(filepath):
     try:
         hex_data = result.stdout.strip().replace(' ', '').replace('\n', '')
         data = plistlib.loads(bytes.fromhex(hex_data))
+        colors = set()
         for tag in data:
             parts = tag.split('\n')
             if len(parts) > 1:
-                return COLOR_NAMES.get(int(parts[1]), 'Other')
-        return 'Other'
+                colors.add(int(parts[1]))
+        if not colors:
+            return 'Tagged (no color)'
+        return '+'.join(COLOR_NAMES.get(c, 'Other') for c in COLOR_DISPLAY_ORDER if c in colors)
     except Exception:
         return 'Untagged'
 
@@ -66,8 +72,8 @@ def main():
                 continue
             count += 1
             size += entry.stat().st_size
-            color = get_tag_color_name(entry.path)
-            tag_totals[color] = tag_totals.get(color, 0) + 1
+            label = get_tag_label(entry.path)
+            tag_totals[label] = tag_totals.get(label, 0) + 1
         total_files += count
         total_size += size
         model_stats.append((model.name, count, size))
