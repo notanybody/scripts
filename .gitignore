@@ -3,6 +3,10 @@
 !README.md
 *.m3u
 
+#Financial data: never commit
+*.csv
+*.json
+
 # Python
 __pycache__/
 *.pyc
