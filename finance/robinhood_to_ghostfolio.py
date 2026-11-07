@@ -7,6 +7,8 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
+# Delisted tickers Yahoo no longer knows: import with prices taken as given.
+MANUAL_SYMBOLS = {"APHA", "NKLA"}
 
 def parse_date(s):
     return datetime.strptime(s, "%m/%d/%Y").date()
@@ -199,7 +201,8 @@ def main():
         if qty != 0:
             print(f"  {sym:6} {qty}")
 
-    activities = [dict(t, source="YAHOO", action=t["action"].lower(), fee=Decimal(0))
+    activities = [dict(t, source="MANUAL" if t["symbol"] in MANUAL_SYMBOLS else "YAHOO", 
+                       action=t["action"].lower(), fee=Decimal(0))
                   for t in trades]
     income, totals = build_income_and_fees(rows)
     activities += income
