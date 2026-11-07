@@ -10,7 +10,7 @@ import os
 import sys
 import re
 import shutil
-from tqdm import tqdm
+from pacman_bar import PacmanBar as tqdm
 
 TIMESTAMP_RE = re.compile(r'^(\d{4})-(\d{2})-(\d{2}) \d{2}\.\d{2}\.\d{2}')
 

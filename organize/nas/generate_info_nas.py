@@ -3,7 +3,7 @@ import os
 import sys
 import plistlib
 from datetime import datetime
-from tqdm import tqdm
+from pacman_bar import PacmanBar as tqdm
 
 COLOR_NAMES = {
     1: 'Gray',

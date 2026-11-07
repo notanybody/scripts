@@ -11,7 +11,7 @@ import sys
 import shutil
 import subprocess
 import plistlib
-from tqdm import tqdm
+from pacman_bar import PacmanBar as tqdm
 
 VIDEO_EXTS = {'.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v'}
 
@@ -20,28 +20,25 @@ VIDEO_EXTS = {'.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v'}
 # Blue, Red, Yellow, untagged.
 RED, BLUE, ORANGE, PURPLE, YELLOW = 5, 4, 7, 3, 6
 
-def find_tag_attr(filepath):
-    try:
-        for attr in os.listxattr(filepath):
-            if 'kMDItemUserTags' in attr:
-                return attr
-    except OSError:
-        pass
-    return None
-
 def get_tag_colors(filepath):
-    attr_name = find_tag_attr(filepath)
-    if not attr_name:
+    # os.listxattr/os.getxattr are Linux-only in the stdlib — not available on macOS.
+    # Shell out to the `xattr` CLI instead, same approach as safe_dedup.py.
+    result = subprocess.run(
+        ['xattr', '-px', 'com.apple.metadata:_kMDItemUserTags', filepath],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0 or not result.stdout.strip():
         return set()
     try:
-        tags = plistlib.loads(os.getxattr(filepath, attr_name))
+        hex_data = result.stdout.strip().replace(' ', '').replace('\n', '')
+        tags = plistlib.loads(bytes.fromhex(hex_data))
         colors = set()
         for tag in tags:
             parts = tag.split('\n')
             if len(parts) > 1:
                 colors.add(int(parts[1]))
         return colors
-    except (OSError, Exception):
+    except Exception:
         return set()
 
 def get_tag_priority(filepath):

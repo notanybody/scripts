@@ -2,7 +2,7 @@
 import os
 import sys
 import shutil
-from tqdm import tqdm
+from pacman_bar import PacmanBar as tqdm
 
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 

@@ -2,7 +2,7 @@
 import os
 import sys
 import plistlib
-from tqdm import tqdm
+from pacman_bar import PacmanBar as tqdm
 
 VIDEO_EXTS = {'.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v'}
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}

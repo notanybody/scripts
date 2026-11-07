@@ -2,7 +2,7 @@
 import os
 import sys
 import subprocess
-from tqdm import tqdm
+from pacman_bar import PacmanBar as tqdm
 
 def get_tags(filepath):
     result = subprocess.run(

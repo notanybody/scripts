@@ -2,7 +2,7 @@
 import os
 import sys
 import re
-from tqdm import tqdm
+from pacman_bar import PacmanBar as tqdm
 
 def clean_name(name):
     # Strip "- TG" and similar suffixes before the @ handle

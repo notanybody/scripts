@@ -2,7 +2,7 @@
 import os
 import sys
 import shutil
-from tqdm import tqdm
+from pacman_bar import PacmanBar as tqdm
 
 def safe_dest(dest_dir, filename):
     dest = os.path.join(dest_dir, filename)
