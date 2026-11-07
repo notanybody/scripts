@@ -119,6 +119,8 @@ def main():
                         help="write actual-<out>.csv files (default: dry run, summary only)")
     parser.add_argument("--out-dir", type=Path,
                         help="where to write (default: next to the export)")
+    parser.add_argument("--only", metavar="ACCOUNT", action="append",
+                        help="process just this Copilot account (repeatable)")
     args = parser.parse_args()
 
     with open(args.csv, newline="", encoding="utf-8-sig") as f:
@@ -129,6 +131,8 @@ def main():
 
     print(f"{len(rows)} Copilot rows; accounts: {', '.join(sorted({clean(r['account']) for r in rows}))}")
     for name, cfg in config["accounts"].items():
+        if args.only and name not in args.only:
+            continue
         out, s = convert_account(rows, name, cfg, balance_date)
         print(f"\n{name} -> actual-{cfg['out']}.csv")
         print(f"  {s['rows']} transactions, {s['from']} -> {s['to']}")
